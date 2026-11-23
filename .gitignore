@@ -1,0 +1,13 @@
+# the full uk/ru datasets are too big for GitHub, the folds file has what we need from them
+/data/*
+!/data/README.md
+!/data/cv_rows.parquet
+!/data/test.csv
+!/data/labeling_sample.csv
+
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+.idea/
+wandb/
