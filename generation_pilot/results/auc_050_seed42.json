@@ -1,0 +1,178 @@
+{
+  "experiment": "auc_050_seed42",
+  "scope": "Exploratory paired domain classification of 50 agent-reviewed synthetic texts; location labels unused.",
+  "conclusion": "Inconclusive: both paired delta intervals include zero.",
+  "protocol_sha256": "127394f7adcbc4c97d0fb83ee160c761eb17899dd705453b9e8b71e8af66586c",
+  "classifier": {
+    "model": "FacebookAI/xlm-roberta-base",
+    "revision": "e73636d4f797dec63c3081bb6ed5c7b0bb3f2089",
+    "seed": 42,
+    "learning_rate": 2e-05,
+    "epochs": 2,
+    "batch_size": 16,
+    "eval_batch_size": 16,
+    "optimizer": "adamw_torch"
+  },
+  "bootstrap_samples": 2000,
+  "ci_method": "Percentile95% cluster bootstrap of fixed held-out predictions; shared target resamples, independent source resamples.",
+  "input_sha256": {
+    "data/cv_rows.parquet": "aa206c43385e370094d0e6e4059cacdd414d2c6a74f533e88ef795863f4cd104",
+    "data/test.csv": "8cd69906e64b9626d85a9fcb33df4e6b0d7c3d93290c1b562e4586878688b60d",
+    "generation_pilot/artifacts/combined_050/candidates.jsonl": "5abf0a431d25a96c34ab06133a582c59eda4944400e33b5b0c2894cc016629d9",
+    "generation_pilot/artifacts/preview_002/target_manifest.json": "9e0c1d11d433fc4664f7561dea7d3f2ad6defdea388b6e72feba178d44eda4ca",
+    "generation_pilot/artifacts/preview_002/source_manifest.json": "f367c0d257c58a2e4044517bf838abcd6385a3df5a042864bebd84a542bc5a8a"
+  },
+  "versions": {
+    "torch": "2.15.0",
+    "transformers": "5.0.0",
+    "accelerate": "1.12.0",
+    "numpy": "2.5.5",
+    "pandas": "3.1.0",
+    "scikit-learn": "1.9.1"
+  },
+  "conditions": {
+    "raw": {
+      "arms": {
+        "original": {
+          "auc": 0.9478723404255318,
+          "metrics": {
+            "test_loss": 0.21382245421409607,
+            "test_runtime": 1.3045,
+            "test_samples_per_second": 79.726,
+            "test_steps_per_second": 5.366
+          },
+          "device": "mps",
+          "wall_seconds": 44.74254120804835
+        },
+        "synthetic": {
+          "auc": 0.7574468085106383,
+          "metrics": {
+            "test_loss": 0.2897781729698181,
+            "test_runtime": 1.0821,
+            "test_samples_per_second": 96.106,
+            "test_steps_per_second": 6.469
+          },
+          "device": "mps",
+          "wall_seconds": 40.6251047499245
+        }
+      },
+      "delta": 0.19042553191489353,
+      "ci95": {
+        "original": [
+          0.893680814940577,
+          0.9891333567087424
+        ],
+        "synthetic": [
+          0.5078917204077387,
+          0.9713546315185515
+        ],
+        "delta": [
+          -0.02617222439214912,
+          0.44668187785294844
+        ]
+      },
+      "sample_counts": {
+        "original": {
+          "counts": {
+            "evaluation:0": 10,
+            "evaluation:1": 94,
+            "fit:0": 40,
+            "fit:1": 383
+          },
+          "evaluation_groups": {
+            "0": 10,
+            "1": 89
+          }
+        },
+        "synthetic": {
+          "counts": {
+            "evaluation:0": 10,
+            "evaluation:1": 94,
+            "fit:0": 40,
+            "fit:1": 383
+          },
+          "evaluation_groups": {
+            "0": 5,
+            "1": 89
+          }
+        }
+      }
+    },
+    "controlled": {
+      "arms": {
+        "original": {
+          "auc": 0.7311643835616437,
+          "metrics": {
+            "test_loss": 0.31200864911079407,
+            "test_runtime": 0.2695,
+            "test_samples_per_second": 300.57,
+            "test_steps_per_second": 22.264
+          },
+          "device": "mps",
+          "wall_seconds": 11.898982333019376
+        },
+        "synthetic": {
+          "auc": 0.8544520547945206,
+          "metrics": {
+            "test_loss": 0.30703696608543396,
+            "test_runtime": 0.1442,
+            "test_samples_per_second": 561.798,
+            "test_steps_per_second": 41.615
+          },
+          "device": "mps",
+          "wall_seconds": 10.269798040972091
+        }
+      },
+      "delta": -0.12328767123287687,
+      "ci95": {
+        "original": [
+          0.5083333333333334,
+          0.9150123239436619
+        ],
+        "synthetic": [
+          0.7025641025641026,
+          0.9611111111111111
+        ],
+        "delta": [
+          -0.3688116501918585,
+          0.11747214974269737
+        ]
+      },
+      "sample_counts": {
+        "original": {
+          "counts": {
+            "evaluation:0": 8,
+            "evaluation:1": 73,
+            "fit:0": 34,
+            "fit:1": 306
+          },
+          "evaluation_groups": {
+            "0": 8,
+            "1": 68
+          }
+        },
+        "synthetic": {
+          "counts": {
+            "evaluation:0": 8,
+            "evaluation:1": 73,
+            "fit:0": 34,
+            "fit:1": 306
+          },
+          "evaluation_groups": {
+            "0": 5,
+            "1": 68
+          }
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Only 10 synthetic holdout posts raw and 8 controlled, across 5 dependency groups.",
+    "Single training seed; fixed-prediction bootstrap omits retraining variability.",
+    "Natural class imbalance shared across arms.",
+    "Target repost groups are automatically constructed and await human review.",
+    "Historical target exposure and aggregate-guided generation.",
+    "All generated posts use the location-first stream; human label review pending.",
+    "The evaluation holdout is now exposed to further recipe adjustments."
+  ]
+}

@@ -103,3 +103,34 @@ The second run hides format and length, and the model still gets 0.97, so the di
 itself. The Assignment 3 BiLSTM got 0.94 and 0.84 in the same two settings. A good CV score on sentences
 doesn't promise a good score on posts, and that's why we report the leaderboard score next to CV for every
 experiment.
+
+### Synthetic training-data pilot
+
+We generated 50 Telegram-style posts with `gpt-6.1-terra` at high reasoning and reviewed their text and
+location spans with a separate parent agent. There are 45 Ukrainian and 5 Russian posts, with a median
+length of 277 characters against 264 in the test set. Human label review is still pending, and the
+generated texts stay local rather than entering the source CV data.
+
+We then trained four fresh XLM-R classifiers: original source versus test posts and generated posts
+versus the same test posts, each on raw and controlled text. Both arms use the same source-class counts
+and language mix. Parent groups, generation families and target repost groups stay on one side of the
+fit/evaluation split. Settings follow the earlier notebook: two epochs, learning rate 2e-5, batch size
+16 and seed 42. This is an exploratory check of 50 posts, separate from the larger planned pilot.
+
+| Condition | Original source AUC | Generated AUC | Difference, original minus generated (95% group-bootstrap interval) |
+| --- | ---: | ---: | --- |
+| Raw, at most 256 tokens | 0.9479 | 0.7574 | +0.1904 [−0.0262, +0.4467] |
+| Masked, exactly 32 tokens | 0.7312 | 0.8545 | −0.1233 [−0.3688, +0.1175] |
+
+The raw classifier has a harder time distinguishing generated posts from test posts, but the controlled
+comparison goes the other way. Both difference intervals include zero, so the result is inconclusive.
+Only 10 generated posts were held out, or 8 after filtering for 32 tokens, and they form just 5
+dependency groups. These scores do not establish better location extraction. They also cannot be
+compared directly with the earlier 0.992/0.972 results, which used many more source sentences and a
+different split.
+
+The [full report](generation_pilot/AUC_REPORT.md) includes sample counts, uncertainty and limitations;
+the [committed results summary](generation_pilot/results/auc_050_seed42.json) preserves the measured
+scores and configuration without raw text. The notebook and
+[pilot runner](generation_pilot/run_adversarial.py) share
+[one classifier implementation](evaluation/domain_classifier.py).
