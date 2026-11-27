@@ -10,11 +10,13 @@ Update this file after each experiment notebookЖ
 from .data import DataSpec
 
 # 01_data_mix: two stages won on half_B (0.872). Stage 1 = all Kaggle sentences for OPTIMIZATION["epochs"],
-# stage 2 = all synthetic posts for 2 epochs at lr 2e-5.
+# stage 2 = all synthetic posts at lr 2e-5. 02_optimization: 4 stage-2 epochs instead of 2 (best mean of half_A
+# and half_B, 0.884 vs 0.872; half_B was still rising after 2).
 DATA = DataSpec(synthetic="none")
-STAGE2 = {"stage2_data": DataSpec(sentences=0), "stage2_epochs": 2, "stage2_lr": 2e-5}
+STAGE2 = {"stage2_data": DataSpec(sentences=0), "stage2_epochs": 4, "stage2_lr": 2e-5}
 
-# 02_optimization decides this. Defaults: the usual fine-tuning setup for base-size encoders.
+# 02_optimization: no other change beats the run-to-run noise (about ±0.015 on half_B); SGD and first-sub-token
+# labels are clearly worse. So the usual fine-tuning setup stays.
 OPTIMIZATION = dict(
     optimizer="adamw",
     learning_rate=3e-5,
