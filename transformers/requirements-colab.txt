@@ -1,0 +1,11 @@
+# Keep Colab's CUDA-enabled torch; record its exact version in every run.
+torch>=2.6,<3
+transformers==5.0.0
+accelerate==1.12.0
+numpy>=1.26,<3
+pandas>=2.2,<4
+pyarrow>=18,<27
+matplotlib>=3.9,<4
+sentencepiece>=0.2,<0.3
+protobuf>=5,<8
+wandb>=0.19,<1
