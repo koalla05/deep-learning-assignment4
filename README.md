@@ -175,6 +175,9 @@ and choose it by the NER score on half B, the 26 labeled posts and the leaderboa
 Code shared by all experiments is in [`ner/`](ner/). The notebooks in [`transformers/`](transformers/)
 are short: a config per run and the result tables and plots.
 
+The [evaluation-set reference](transformers/01_data_mix.ipynb#evaluation-sets-and-label-sources) explains
+A/B (`half_A`/`half_B`), `gold26`, the label sources and which scores are used for model selection.
+
 The [Colab training guide](transformers/README.md) covers Drive/W&B setup, durable model and prediction
 exports, recovery and the XLM-R memory preflight. The [readiness review](transformers/COLAB_READINESS.md)
 records the original findings and implementation status. Full-sized runs still need a Colab GPU check.
