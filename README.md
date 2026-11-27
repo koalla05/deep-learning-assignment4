@@ -69,8 +69,10 @@ no time split because the data has no dates. A validation set of real posts woul
 have 26 labeled ones, and labeling test posts by hand is against the rules.
 
 For every experiment we write down the CV score, the F1 on the 26 labeled posts and the public leaderboard
-score. We tune only on CV, never on the 26 posts or the leaderboard. Before you submit, strip punctuation
-from both ends of every predicted place (see the metric section).
+score. The newer Transformer experiments select recipes and learning rates on teacher-labeled `half_B`,
+which is a development set rather than an untouched test. The 26 gold posts and leaderboard remain
+report-only. Before you submit, strip punctuation from both ends of every predicted place (see the
+metric section).
 
 ### How well CV follows the leaderboard
 
@@ -173,6 +175,10 @@ and choose it by the NER score on half B, the 26 labeled posts and the leaderboa
 Code shared by all experiments is in [`ner/`](ner/). The notebooks in [`transformers/`](transformers/)
 are short: a config per run and the result tables and plots.
 
+The [Colab training guide](transformers/README.md) covers Drive/W&B setup, durable model and prediction
+exports, recovery and the XLM-R memory preflight. The [readiness review](transformers/COLAB_READINESS.md)
+records the original findings and implementation status. Full-sized runs still need a Colab GPU check.
+
 | Notebook | What it decides |
 | --- | --- |
 | [`00_tokenizers`](transformers/00_tokenizers.ipynb) | which encoders can read Ukrainian (tokens per word, `[UNK]`, і/ї/є/ґ) |
@@ -199,6 +205,6 @@ How it works:
 - **Shared recipe.** [`ner/recipes.py`](ner/recipes.py) holds the current best data and optimization
   settings, updated after notebooks 01 and 02, so teammates running the model notebooks in parallel use
   the same recipe.
-- **Colab.** Every notebook clones the repo, writes runs to Drive (`dl-a4-ner/runs`) and loads finished
-  runs instead of retraining them after a disconnect. `NER_SMOKE=1` runs a whole notebook with tiny runs
-  in a few minutes.
+- **Colab.** Notebooks 03–05 fetch a selected repository revision, connect Drive and W&B, preserve
+  weights and inference bundles, and resume verified recovery checkpoints. `NER_SMOKE=1` uses separate
+  Drive folders. A full-window GPU memory preflight still runs before the reduced smoke experiments.
