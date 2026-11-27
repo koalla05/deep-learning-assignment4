@@ -137,3 +137,32 @@ def find_spans(text, strings):
         if not found:
             missing.append(s)
     return sorted(spans), missing
+
+
+# Edge punctuation removed from every label and prediction (the metric doesn't strip it, see README).
+STRIP = " .,:;!?\"'«»“”()[]—–-"
+PAIRS = {"»": "«", "”": "“", ")": "(", "]": "["}
+
+
+def strip_edges(p):
+    """Strip edge punctuation, but keep a quote or bracket whose partner is inside the string.
+
+    "станції метро «Оболонь»" stays whole (a half-quoted "станції метро «Оболонь" would be a wrong
+    label and a span that ends one character early); a stray trailing "»" or "." is still removed, and
+    a name wrapped whole ("«Почайна»") loses both quotes, as the gold labels have no quotes.
+    """
+    for opener, closer in [("«", "»"), ("“", "”"), ('"', '"')]:
+        if len(p) > 2 and p[0] == opener and p[-1] == closer and opener not in p[1:-1] and closer not in p[1:-1]:
+            p = p[1:-1]
+    while p and p[-1] in STRIP:
+        c = p[-1]
+        if (c in PAIRS and PAIRS[c] in p[:-1]) or (c == '"' and p[:-1].count('"') % 2 == 1):
+            break
+        p = p[:-1]
+    while p and p[0] in STRIP:
+        c = p[0]
+        closer = {v: k for k, v in PAIRS.items()}.get(c)
+        if (closer and closer in p[1:]) or (c == '"' and p[1:].count('"') % 2 == 1):
+            break
+        p = p[1:]
+    return p

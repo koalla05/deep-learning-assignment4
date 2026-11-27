@@ -1,0 +1,46 @@
+base:
+  task: question-answering
+  teacher_model_name: zai.glm-5.3-low-thinking
+synthgen:
+  output_is_json: true
+  train_generation_target: 6000
+  teacher_temperature: 0.7
+  num_positive_exemplars_per_generation: 3
+  generation_in_single_call: 2
+  validation_similarity_threshold: 0.85
+  mutators:
+    - name: length
+      values:
+        - "very short: one line under 80 characters"
+        - "short: 80 to 220 characters, one or two short paragraphs"
+        - "medium: 220 to 500 characters, two or three paragraphs"
+        - "long: 500 to 1100 characters, several paragraphs or a list"
+        - "very long: 1100 to 2500 characters, a detailed multi-paragraph report or long list"
+      target_distribution: [15, 30, 30, 20, 5]
+    - name: places
+      values:
+        - "without any place name at all, so the answer is an empty list"
+        - "mentioning exactly one place, possibly repeated"
+        - "mentioning two or three different places"
+        - "mentioning four or more different places, for example a list of streets, districts or towns"
+      target_distribution: [30, 35, 20, 15]
+    - name: language
+      values: ["written in Ukrainian", "written in Russian"]
+      target_distribution: [9, 1]
+    - name: topic
+      values:
+        - "about an air raid alert, a drone or missile attack, or its consequences"
+        - "about power, water, heating or gas outages and utility works"
+        - "about public transport, traffic, roadworks or a road accident"
+        - "about city council or authorities' decisions, budgets and public services"
+        - "about crime, police, courts or corruption"
+        - "about events, culture, sport, schools or volunteering"
+        - "about weather, environment or animals"
+        - "about the war, the front, politics or international news"
+        - "about prices, business, shops or the economy"
+        - "about everyday city life: a resident's complaint, a question or a lost-and-found post"
+  validation_instructions: |
+    Read the post and extract the places yourself, following the task description.
+    Reject the example if your list differs from the answer (a missing place, an extra string,
+    or a string that does not occur verbatim in the post), if the answer is not a JSON list of
+    strings, or if the post is not a plausible Ukrainian or Russian Telegram news post.

@@ -11,3 +11,11 @@ __pycache__/
 .DS_Store
 .idea/
 wandb/
+
+# local environment
+.venv/
+
+# raw Distil Labs downloads (33 MB); re-download with
+#   distil dataset download -d synthetic/runs/full-1 42cde86d-898d-48c8-a423-f6902f6cfd5d
+# the cleaned posts and adversarial scores are in synthetic/output/
+/synthetic/runs/

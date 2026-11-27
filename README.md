@@ -134,3 +134,36 @@ the [committed results summary](generation_pilot/results/auc_050_seed42.json) pr
 scores and configuration without raw text. The notebook and
 [pilot runner](generation_pilot/run_adversarial.py) share
 [one classifier implementation](evaluation/domain_classifier.py).
+
+### Synthetic posts from Distil Labs (6,000-post run)
+
+We pseudo-labeled the 477 test posts with a strong LLM (approved by the instructor, see
+[`pseudo_label/`](pseudo_label/pseudo_labeling.ipynb)), and Distil Labs (GLM 5.3 teacher) wrote new labeled
+posts using seed half A (239 posts) as examples. Half B was never shown to the generator, so we use it to
+check that a model doesn't just memorize the seeds. The analysis is in
+[`synthetic/synthetic_data.ipynb`](synthetic/synthetic_data.ipynb).
+
+- 6,079 generated posts. Their length (median 266 characters vs 264), line breaks, emoji, language mix and
+  places per post are close to the test posts. No post copies a test post.
+- We dropped 44 posts whose label had a different word ending than the text and 196 near-identical
+  repeats. **5,839 posts** are left, with character spans, in `synthetic/output/full1_clean.parquet`.
+- Only 13% of the synthetic places appear in the training sentences, so the new data mostly adds unseen
+  names. The generator likes two districts: "Деснянському районі" and "Дарницькому районі" each appear
+  in about 8% of the posts.
+
+Adversarial check with the same XLM-R classifier
+([`synthetic/synthetic_adversarial.ipynb`](synthetic/synthetic_adversarial.ipynb), run on Colab, grouped
+split, the same 100 held-out test posts for both sources):
+
+| Run | Training sentences vs test | Synthetic vs test |
+| --- | ---: | ---: |
+| raw, 256 tokens | 0.989 | 0.941 |
+| masked, exactly 32 tokens | 0.933 | 0.907 |
+
+The synthetic posts are closer to test, mostly in format, but still easy to tell apart. They are as far
+from half A as from half B (0.939 and 0.943), so the generator doesn't imitate its seeds. A 5-fold
+out-of-fold score (fold AUC 0.956-0.975) ranks every synthetic post by how test-like it is. The least
+test-like posts are long official announcements with lists of streets and addresses. The classifier
+prefers short posts with few places, so keeping only the top half would also cut the distinct places from
+2,397 to 1,409. We treat the cut as a training hyperparameter (all, top 75%, top 50%, or sample weights)
+and choose it by the NER score on half B, the 26 labeled posts and the leaderboard.
