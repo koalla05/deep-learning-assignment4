@@ -1,11 +1,13 @@
 """Optimization curves and gradient flow of saved runs (see train.load_run)."""
 
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 
-def plot_curves(runs, title=None):
+def plot_curves(runs, title=None, save_to=None):
     """Training loss, held-out losses and post-level F1 per epoch for one or several runs ({label: run})."""
     fig, axes = plt.subplots(1, 3, figsize=(15, 3.6))
     for label, run in runs.items():
@@ -13,11 +15,21 @@ def plot_curves(runs, title=None):
         offset = _stage_offsets(log)
         if "loss" in log:  # missing when a run is shorter than one logging interval
             train = log.dropna(subset=["loss"])
-            axes[0].plot(train.step + train.stage.map(offset), train.loss.rolling(5, min_periods=1).mean(), label=label)
+            axes[0].plot(
+                train.step + train.stage.map(offset),
+                train.loss.rolling(5, min_periods=1).mean(),
+                label=label,
+            )
         for col, style in [("eval_sentences_loss", "-"), ("eval_synthetic_loss", "--")]:
             if col in log:
                 ev = log.dropna(subset=[col])
-                axes[1].plot(ev.step + ev.stage.map(offset), ev[col], style, marker="o", label=f"{label}, {col.split('_')[1]}")
+                axes[1].plot(
+                    ev.step + ev.stage.map(offset),
+                    ev[col],
+                    style,
+                    marker="o",
+                    label=f"{label}, {col.split('_')[1]}",
+                )
         post = pd.DataFrame(run["history"]["post_eval"])
         if len(post):
             post["x"] = np.arange(1, len(post) + 1)
@@ -32,6 +44,9 @@ def plot_curves(runs, title=None):
     if title:
         fig.suptitle(title)
     plt.tight_layout()
+    if save_to is not None:
+        Path(save_to).parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_to, dpi=150, bbox_inches="tight")
     plt.show()
 
 
@@ -46,7 +61,7 @@ def _stage_offsets(log):
     return offsets
 
 
-def plot_grad_flow(run, title=None):
+def plot_grad_flow(run, title=None, save_to=None):
     """Heatmap of gradient norm per layer group (rows) over training steps (columns), log scale."""
     df = pd.DataFrame(run["grad_flow"]).set_index("step")
     layers = sorted(c for c in df.columns if c.startswith("layer_"))
@@ -66,6 +81,9 @@ def plot_grad_flow(run, title=None):
     if title:
         fig.suptitle(title)
     plt.tight_layout()
+    if save_to is not None:
+        Path(save_to).parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_to, dpi=150, bbox_inches="tight")
     plt.show()
 
 

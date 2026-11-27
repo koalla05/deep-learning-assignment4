@@ -24,3 +24,6 @@ wandb/
 /transformers/runs_smoke/
 /transformers/runs/*/checkpoints/
 /transformers/runs/*/probs.pkl
+/transformers/runs/*/model/
+/transformers/runs/*/work/
+/transformers/ensembles/

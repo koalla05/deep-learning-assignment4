@@ -10,29 +10,43 @@ import torch
 
 from .data import tools
 from .encoding import contained, model_text, windows
+from .runtime import autocast
 
 
 @torch.no_grad()
-def token_probs(model, tokenizer, texts, max_length=256, stride=64, batch_size=32):
+def token_probs(
+    model, tokenizer, texts, max_length=256, stride=64, batch_size=16, precision="auto"
+):
     """For every text: (offsets [n, 2], probabilities [n, 3] for O / B-LOC / I-LOC).
 
     Long texts are cut into windows overlapping by ``stride`` tokens; a token seen in two windows gets the
     mean of its two probability vectors.
     """
+    if batch_size < 1:
+        raise ValueError("inference batch_size must be positive")
     was_training = model.training
     model.eval()
     device = next(model.parameters()).device
     enc = windows(tokenizer, texts, max_length, stride)
     sample_of = enc["overflow_to_sample_mapping"]
     sums = [dict() for _ in texts]
-    order = np.argsort([len(ids) for ids in enc["input_ids"]])  # similar lengths together: less padding
+    order = np.argsort(
+        [len(ids) for ids in enc["input_ids"]]
+    )  # similar lengths together: less padding
     for start in range(0, len(order), batch_size):
         idx = order[start : start + batch_size]
         batch = tokenizer.pad(
-            {"input_ids": [enc["input_ids"][i] for i in idx], "attention_mask": [enc["attention_mask"][i] for i in idx]},
+            {
+                "input_ids": [enc["input_ids"][i] for i in idx],
+                "attention_mask": [enc["attention_mask"][i] for i in idx],
+            },
             return_tensors="pt",
         ).to(device)
-        probs = torch.softmax(model(**batch).logits.float(), dim=-1).cpu().numpy()
+        with autocast(device, precision):
+            logits = model(**batch).logits
+        probs = torch.softmax(logits.float(), dim=-1).cpu().numpy()
+        if not np.isfinite(probs).all():
+            raise FloatingPointError("non-finite inference probabilities; try precision=fp32")
         for row, i in enumerate(idx):
             acc = sums[sample_of[i]]
             offsets = [tuple(o) for o in enc["offset_mapping"][i]]
@@ -116,15 +130,21 @@ def decode(text, offsets, probs, threshold=0.5, aggregation="token", merge="bio"
 
 
 def decode_all(texts, token_outputs, **kwargs):
+    if len(texts) != len(token_outputs):
+        raise ValueError("text and prediction counts differ")
     return [decode(t, o, p, **kwargs) for t, (o, p) in zip(texts, token_outputs)]
 
 
 def average_probs(outputs_per_model):
     """Ensemble: mean probabilities of several models over the same texts (offsets must match)."""
+    if not outputs_per_model or len({len(rows) for rows in outputs_per_model}) != 1:
+        raise ValueError("ensemble members must have the same nonempty list of rows")
     merged = []
     for per_text in zip(*outputs_per_model):
         offsets = per_text[0][0]
         if not all(np.array_equal(o, offsets) for o, _ in per_text):
-            raise ValueError("models tokenize differently; ensemble them at the character level instead")
+            raise ValueError(
+                "models tokenize differently; ensemble them at the character level instead"
+            )
         merged.append((offsets, np.mean([p for _, p in per_text], axis=0)))
     return merged

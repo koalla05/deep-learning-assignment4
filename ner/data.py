@@ -16,7 +16,7 @@ import pandas as pd
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "pseudo_label"))
-import tools  # noqa: E402  (find_spans, strip_edges)
+import tools as tools  # noqa: E402 (also used by ner.predict)
 
 N_FOLDS = 3
 SEED = 42

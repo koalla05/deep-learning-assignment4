@@ -37,11 +37,15 @@ def score(truth, predictions):
     return {"f1": m["f1"], "precision": round(m["precision"], 4), "recall": round(m["recall"], 4)}
 
 
-def evaluate_model(model, tokenizer, sets, max_length, stride, batch_size=64, decode_kwargs=None):
+def evaluate_model(
+    model, tokenizer, sets, max_length, stride, batch_size=16, decode_kwargs=None, precision="auto"
+):
     """F1/precision/recall per set and the token probabilities (kept for post-processing and ensembles)."""
     metrics, probs = {}, {}
     for name, (texts, truth) in sets.items():
-        probs[name] = token_probs(model, tokenizer, texts, max_length, stride, batch_size)
+        probs[name] = token_probs(
+            model, tokenizer, texts, max_length, stride, batch_size, precision=precision
+        )
         metrics[name] = score(truth, decode_all(texts, probs[name], **(decode_kwargs or {})))
     return metrics, probs
 
