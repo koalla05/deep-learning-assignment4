@@ -37,6 +37,8 @@ def load_initial_model(cfg):
     model = AutoModelForTokenClassification.from_pretrained(
         cfg.model,
         revision=cfg.revision,
+        # AMP casts operations; trainable weights must stay float32 even for FP16 checkpoints.
+        dtype=torch.float32,
         num_labels=len(LABELS),
         id2label=dict(enumerate(LABELS)),
         label2id=LABEL2ID,

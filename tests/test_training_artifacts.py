@@ -19,7 +19,7 @@ from ner.experiment import ensemble_directory, record_kaggle_result
 from ner.inference import predict_saved
 from ner.predict import average_probs
 from ner.preflight import memory_check
-from ner.runtime import resolved_precision
+from ner.runtime import load_initial_model, resolved_precision
 from ner.train import RunConfig, WeightedTokenTrainer, load_probs, run, run_or_load
 from transformers import BertConfig, BertForTokenClassification, BertTokenizerFast
 
@@ -122,7 +122,17 @@ class LocalTrainingTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.model_dir = self.root / "initial-model"
         self.model_dir.mkdir()
-        vocabulary = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]", "у", "києві", "дощ", "львові"]
+        vocabulary = [
+            "[PAD]",
+            "[UNK]",
+            "[CLS]",
+            "[SEP]",
+            "[MASK]",
+            "у",
+            "києві",
+            "дощ",
+            "львові",
+        ]
         vocab_file = self.model_dir / "vocab.txt"
         vocab_file.write_text("\n".join(vocabulary), encoding="utf-8")
         tokenizer = BertTokenizerFast(vocab_file=str(vocab_file), do_lower_case=True)
@@ -198,6 +208,21 @@ class LocalTrainingTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
+    def test_fp16_checkpoint_loads_float32_weights_for_training(self):
+        # mDeBERTa ships half-precision weights; AMP needs float32 parameters to unscale gradients.
+        checkpoint = BertForTokenClassification.from_pretrained(self.model_dir).half()
+        checkpoint.save_pretrained(self.model_dir)
+
+        model, tokenizer = load_initial_model(self.cfg)
+        inputs = tokenizer("У Києві дощ", return_tensors="pt")
+        model(**inputs, labels=torch.zeros_like(inputs["input_ids"])).loss.backward()
+
+        self.assertEqual({p.dtype for p in model.parameters()}, {torch.float32})
+        self.assertEqual(
+            {p.grad.dtype for p in model.parameters() if p.grad is not None},
+            {torch.float32},
+        )
+
     def test_two_stages_export_weights_that_reproduce_saved_predictions(self):
         metrics = run(self.cfg, self.root)
         directory = self.root / self.cfg.name
@@ -265,7 +290,8 @@ class LocalTrainingTests(unittest.TestCase):
             )
         verify_bundle(offline_export)
         self.assertEqual(
-            json.loads((offline_export / "logging.json").read_text())["status"], "upload_failed"
+            json.loads((offline_export / "logging.json").read_text())["status"],
+            "upload_failed",
         )
 
     def test_memory_preflight_does_not_change_the_initial_weights(self):
