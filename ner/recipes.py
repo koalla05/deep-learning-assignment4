@@ -9,9 +9,10 @@ Update this file after each experiment notebookЖ
 
 from .data import DataSpec
 
-# 01_data_mix decides this. Placeholder until then: a sample of the Kaggle sentences plus all synthetic posts.
-DATA = DataSpec(sentences=10_000, synthetic="all")
-STAGE2 = None  # e.g. {"stage2_data": DataSpec(sentences=0), "stage2_epochs": 2, "stage2_lr": 2e-5}
+# 01_data_mix: two stages won on half_B (0.872). Stage 1 = all Kaggle sentences for OPTIMIZATION["epochs"],
+# stage 2 = all synthetic posts for 2 epochs at lr 2e-5.
+DATA = DataSpec(synthetic="none")
+STAGE2 = {"stage2_data": DataSpec(sentences=0), "stage2_epochs": 2, "stage2_lr": 2e-5}
 
 # 02_optimization decides this. Defaults: the usual fine-tuning setup for base-size encoders.
 OPTIMIZATION = dict(
@@ -21,7 +22,7 @@ OPTIMIZATION = dict(
     warmup_ratio=0.1,
     weight_decay=0.01,
     layer_lr_decay=1.0,
-    epochs=3,
+    epochs=2,  # stage 1 (sentences); stage 2 is set in STAGE2
     batch_size=32,
     label_smoothing=0.0,
     max_length=256,
