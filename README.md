@@ -167,3 +167,38 @@ test-like posts are long official announcements with lists of streets and addres
 prefers short posts with few places, so keeping only the top half would also cut the distinct places from
 2,397 to 1,409. We treat the cut as a training hyperparameter (all, top 75%, top 50%, or sample weights)
 and choose it by the NER score on half B, the 26 labeled posts and the leaderboard.
+
+## Transformer encoders
+
+Code shared by all experiments is in [`ner/`](ner/). The notebooks in [`transformers/`](transformers/)
+are short: a config per run and the result tables and plots.
+
+| Notebook | What it decides |
+| --- | --- |
+| [`00_tokenizers`](transformers/00_tokenizers.ipynb) | which encoders can read Ukrainian (tokens per word, `[UNK]`, і/ї/є/ґ) |
+| [`01_data_mix`](transformers/01_data_mix.ipynb) | Kaggle sentences, synthetic posts, mixes, two-stage training, adversarial filtering |
+| [`02_optimization`](transformers/02_optimization.ipynb) | learning rate, schedules, AdamW / Adafactor / SGD, layer-wise lr decay, label smoothing, frozen embeddings, first-sub-token labels, window length, batch, epochs |
+| [`03_xlmr_large`](transformers/03_xlmr_large.ipynb), [`04_mdeberta`](transformers/04_mdeberta.ipynb), [`05_mbert`](transformers/05_mbert.ipynb) | each encoder with the best recipe: lr check, 3-fold CV, fold ensemble |
+| [`06_postprocessing`](transformers/06_postprocessing.ipynb) | threshold and entity merging on saved probabilities |
+
+How it works:
+
+- **Labels.** Character spans become BIO token labels through the tokenizer's offsets. Posts longer than
+  256 tokens are split into windows that overlap by 64 tokens, and a token seen twice gets the mean of its
+  two predictions. Emoji are replaced by spaces of the same length before tokenization, so offsets still
+  point into the original text. A check that turns the true labels into "perfect" predictions and scores
+  them gives F1 1.0 on the posts for XLM-R, mDeBERTa and mBERT. On the sentences it gives 0.99, because a
+  few Kaggle labels cut words in half.
+- **Validation.** Fold k of the Kaggle sentences and of the synthetic posts (split by repost group) is
+  never trained on by the fold-k model. Every run reports F1 on the held-out sentences (`cv`, comparable
+  with Assignment 3), the held-out synthetic posts, test half B (pseudo-labels; the generator never saw
+  these posts; the main score), half A and the 26 gold posts. The public leaderboard score goes into
+  [`transformers/leaderboard.csv`](transformers/leaderboard.csv) by hand.
+- **Logging.** Hugging Face `Trainer` with W&B (project `dl-a4-ner`): losses, learning rate, gradient
+  norm, F1 after every epoch, and the gradient norm of every layer (the gradient-flow heatmaps).
+- **Shared recipe.** [`ner/recipes.py`](ner/recipes.py) holds the current best data and optimization
+  settings, updated after notebooks 01 and 02, so teammates running the model notebooks in parallel use
+  the same recipe.
+- **Colab.** Every notebook clones the repo, writes runs to Drive (`dl-a4-ner/runs`) and loads finished
+  runs instead of retraining them after a disconnect. `NER_SMOKE=1` runs a whole notebook with tiny runs
+  in a few minutes.
