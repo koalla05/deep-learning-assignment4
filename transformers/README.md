@@ -14,6 +14,9 @@ child process, then exits before the next starts. Drive logs/status live under `
 `sequence_smoke/`). A failure stops the queue. Rerunning uses the existing bundle verification and
 checkpoint recovery. There is no external polling or automatic allocation of replacement runtimes;
 Colab lifetime and compute-unit limits still apply. Full overnight queue duration remains unmeasured.
+Interrupting the launch cell terminates its process group, including the active training worker.
+The queue rejects a duplicate launch against the same output root within one runtime. This lock does
+not span separate Colab runtimes: run this launcher in only one runtime for these outputs.
 
 1. Open the desired notebook from branch `herman/transformers-training` in Colab. Setup fetches the
    pinned training commit in `REPO_REF` (`357bef2`), shared by all three notebooks. Change it only for a

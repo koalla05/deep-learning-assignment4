@@ -123,8 +123,22 @@ Each run trains for two sentence epochs and four synthetic-post epochs, with its
 excluded. That is 12 runs and 24 training stages across the three encoders. Standalone notebooks do
 not start one another. The subsequent `06_train_sequence.ipynb` launcher adds an automatic queue:
 existing training cells run in separate sequential child processes, with Drive logs/status and
-stop-on-failure behavior. Startup authenticates Drive/W&B once. Queue ordering/failure handling and
-the notebook worker are tested locally; the full-sized GPU queue has not been run end to end.
+stop-on-failure behavior. Startup authenticates Drive/W&B once. The final queue review found and fixed
+an interruption bug: terminating the supervisor could leave its training worker alive. SIGTERM now
+unwinds the active subprocess, records failure, and reaps the worker; notebook cancellation terminates
+the whole queue process group. An OS file lock rejects duplicate queues for the same output root in
+one runtime. It does not coordinate separate Colab runtimes; use one runtime for this launcher.
+
+A real subprocess regression reproduced the orphan-worker bug before the fix and passed afterward.
+The same test rejects a concurrent duplicate launch. A two-worker integration test runs the actual
+notebook training cells with tiny local encoders/fixture data, through both LR trials, selected folds,
+weight export, inference reload and ensemble generation: eight run bundles and two ensemble bundles
+are checksum-verified, both workers exit, and inherited fixture credentials do not appear in logs.
+Training, evaluation and export code is unchanged from the earlier T4 verification. This is a local
+process-boundary check; the full-sized GPU queue has not been run end to end.
+The final local regression suite passed all **20 tests** in 56.9 seconds, including the two real
+workers and interruption/duplicate-launch checks. Lint, notebook code-cell compilation and diff
+whitespace checks passed. The shared `ner/` training source still matches the T4-verified revision.
 
 Recommend sequential encoders on the KSE account until its plan and compute-unit balance are known:
 mBERT first for an early baseline, then mDeBERTa, then XLM-R large. Start each in a fresh runtime and

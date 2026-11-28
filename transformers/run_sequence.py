@@ -1,12 +1,17 @@
 """Run the existing training notebooks sequentially, one GPU process at a time."""
 
 import argparse
+from contextlib import contextmanager
 from datetime import datetime, timezone
+import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
 import subprocess
+import signal
 import sys
+import tempfile
 
 
 NOTEBOOKS = {
@@ -15,6 +20,22 @@ NOTEBOOKS = {
     "xlmr": "03_xlmr_large.ipynb",
 }
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@contextmanager
+def queue_lock(output):
+    """One writer per output root within this runtime; the OS releases interrupted locks."""
+    identity = hashlib.sha256(str(Path(output).resolve()).encode()).hexdigest()
+    path = Path(tempfile.gettempdir()) / f"ner-sequence-{identity}.lock"
+    with path.open("a") as stream:
+        try:
+            fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError("A training queue is already using this output directory") from None
+        try:
+            yield
+        finally:
+            fcntl.flock(stream, fcntl.LOCK_UN)
 
 
 def execute_notebook(path, output, project):
@@ -101,6 +122,13 @@ def main():
     parser.add_argument("--output", required=True)
     parser.add_argument("--project")
     args = parser.parse_args()
+
+    # A notebook cancellation terminates the supervisor. Unwind subprocess.run so it also
+    # kills and reaps the active worker, and let the queue persist its failed status.
+    def terminate(signum, frame):
+        raise SystemExit(128 + signum)
+
+    signal.signal(signal.SIGTERM, terminate)
     os.chdir(ROOT)
     sys.path.insert(0, str(ROOT))
     if args.worker:
@@ -109,7 +137,8 @@ def main():
         )
         print(f"Verified ensemble exported to {context['ENSEMBLE_DIR']}", flush=True)
     else:
-        run_sequence(args.models, args.output, args.project)
+        with queue_lock(args.output):
+            run_sequence(args.models, args.output, args.project)
 
 
 if __name__ == "__main__":
