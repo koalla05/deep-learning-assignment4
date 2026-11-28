@@ -30,7 +30,12 @@ from ner.train import (
     run,
     run_or_load,
 )
-from transformers import BertConfig, BertForTokenClassification, BertTokenizerFast
+from transformers import (
+    BertConfig,
+    BertForTokenClassification,
+    BertTokenizerFast,
+    TrainingArguments,
+)
 
 
 class ArtifactIntegrityTests(unittest.TestCase):
@@ -253,6 +258,19 @@ class LocalTrainingTests(unittest.TestCase):
         self.assertFalse(observed["finite"])
         self.assertIsNone(observed["head"])
         self.assertGreater(observed["embeddings"], 0)
+
+    def test_amp_overflow_norm_can_be_saved_in_trainer_logs(self):
+        model = BertForTokenClassification.from_pretrained(self.model_dir)
+        trainer = WeightedTokenTrainer(
+            model=model,
+            args=TrainingArguments(output_dir=str(self.root / "trainer"), report_to="none"),
+        )
+        trainer.log({"loss": 0.5, "grad_norm": float("nan")})
+        write_json(self.root / "history.json", trainer.state.log_history)
+
+        observed = json.loads((self.root / "history.json").read_text())[0]
+        self.assertIsNone(observed["grad_norm"])
+        self.assertEqual(observed["loss"], 0.5)
 
     def test_notebooks_complete_the_learning_rate_and_three_fold_workflow(self):
         import matplotlib.pyplot as plt

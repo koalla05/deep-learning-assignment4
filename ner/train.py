@@ -151,6 +151,14 @@ class WeightedTokenTrainer(Trainer):
 
     label_smoothing = 0.0
 
+    def log(self, logs, start_time=None):
+        # The scaler can skip an overflowing update at a logging step, too. Preserve a missing norm
+        # before Trainer copies it into history and forwards it to callbacks.
+        norm = logs.get("grad_norm")
+        if norm is not None and not math.isfinite(norm):
+            logs = {**logs, "grad_norm": None}
+        return super().log(logs, start_time)
+
     def _load_from_checkpoint(self, resume_from_checkpoint, model=None):
         # from_pretrained applies the architecture's key conversions (e.g. BERT LayerNorm
         # gamma/beta). A raw safetensors load in Transformers 5.0 misses those weights.
