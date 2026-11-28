@@ -109,6 +109,44 @@ protobuf 6.33.6. These are the actual Colab versions after installing `requireme
 
 ## Overnight launch
 
+### Final launch audit and scheduling
+
+The final source audit confirmed that all three notebooks compile, use the same verified training
+revision, and retain their ensemble-export and saved-weight inference cells. The audited shared
+training sources match that revision exactly. This audit uses the live Drive/W&B evidence above;
+it does not claim a second live authentication check after the verification runtime was released.
+Each new runtime must mount Drive and authenticate W&B again.
+
+Each encoder performs four two-stage runs in sequence: two learning-rate trials on fold 0, followed
+by folds 1 and 2 at the selected rate. The winning fold-0 run is reused in the three-fold ensemble.
+Each run trains for two sentence epochs and four synthetic-post epochs, with its validation fold
+excluded. That is 12 runs and 24 training stages across the three encoders. No cross-notebook queue
+is implemented: finishing one notebook does not automatically start the next.
+
+Recommend sequential encoders on the KSE account until its plan and compute-unit balance are known:
+mBERT first for an early baseline, then mDeBERTa, then XLM-R large. Start each in a fresh runtime and
+release the previous runtime. Parallel encoder training requires separate GPU runtimes, sufficient
+account allowance and compute units, and additional Drive capacity. Never put two training notebooks
+on the same GPU runtime or let two workers write the same run directory.
+
+GPU memory is verified for all three encoders; full-duration capacity is not. Colab's
+[official FAQ](https://research.google.com/colaboratory/faq.html) describes dynamic limits, generally
+up to 12-hour runtimes, and up to 24 hours of continuous execution on Pro+ with sufficient compute
+units. Concurrent GPU availability is not guaranteed. The account's current plan, remaining units and
+Drive quota have not been established. Therefore completion of all three notebooks in one night is
+not guaranteed. Use the first full run's stage timings and Colab's displayed unit consumption to
+budget the remaining work; bounded smoke timings cannot establish that budget. Checkpoint recovery
+limits lost work but does not extend Colab runtime limits.
+
+For each encoder, retain all four run bundles (including the losing LR trial) and the selected
+three-fold ensemble bundle. The ensemble submission is the preferred per-encoder Kaggle file;
+individual fold submissions are also retained. Weights/config/tokenizer on Drive enable fresh-runtime
+inference without Hub downloads. Saved probabilities, character offsets, text hashes and test IDs
+enable later cross-encoder alignment. Cross-encoder voting/alignment remains separate implementation
+work; direct averaging of the three tokenizers' probabilities is not supported. W&B stores curves,
+metrics and ensemble evaluation artifacts; Drive is the authoritative weight store. Actual Kaggle
+scores must be obtained by submission and then recorded with their submission IDs.
+
 Notebooks 03–05 are ready to launch from `herman/transformers-training`, using a fresh GPU runtime for
 each notebook and the pinned `REPO_REF`. Mount the requested KSE Drive, authenticate W&B, leave
 `NER_SMOKE` unset and run top to bottom. The notebooks use the verified KSE W&B team by default.
