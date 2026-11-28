@@ -7,6 +7,14 @@ learning rates before training the remaining folds.
 
 ## Start a run
 
+For automatic sequential execution, open **`06_train_sequence.ipynb`** instead. Authenticate Drive
+and W&B once and run all cells. Set `MODELS` to any ordered subset of `mbert`, `mdeberta`, `xlmr`;
+the default runs all three. Each encoder executes the existing notebook's training cells in a fresh
+child process, then exits before the next starts. Drive logs/status live under `sequence/` (or
+`sequence_smoke/`). A failure stops the queue. Rerunning uses the existing bundle verification and
+checkpoint recovery. There is no external polling or automatic allocation of replacement runtimes;
+Colab lifetime and compute-unit limits still apply. Full overnight queue duration remains unmeasured.
+
 1. Open the desired notebook from branch `herman/transformers-training` in Colab. Setup fetches the
    pinned training commit in `REPO_REF` (`357bef2`), shared by all three notebooks. Change it only for a
    deliberate new experiment; the selected commit must be published for Colab to fetch it.

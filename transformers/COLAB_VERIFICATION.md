@@ -120,8 +120,11 @@ Each new runtime must mount Drive and authenticate W&B again.
 Each encoder performs four two-stage runs in sequence: two learning-rate trials on fold 0, followed
 by folds 1 and 2 at the selected rate. The winning fold-0 run is reused in the three-fold ensemble.
 Each run trains for two sentence epochs and four synthetic-post epochs, with its validation fold
-excluded. That is 12 runs and 24 training stages across the three encoders. No cross-notebook queue
-is implemented: finishing one notebook does not automatically start the next.
+excluded. That is 12 runs and 24 training stages across the three encoders. Standalone notebooks do
+not start one another. The subsequent `06_train_sequence.ipynb` launcher adds an automatic queue:
+existing training cells run in separate sequential child processes, with Drive logs/status and
+stop-on-failure behavior. Startup authenticates Drive/W&B once. Queue ordering/failure handling and
+the notebook worker are tested locally; the full-sized GPU queue has not been run end to end.
 
 Recommend sequential encoders on the KSE account until its plan and compute-unit balance are known:
 mBERT first for an early baseline, then mDeBERTa, then XLM-R large. Start each in a fresh runtime and

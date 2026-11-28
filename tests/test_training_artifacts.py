@@ -1,6 +1,7 @@
 """Exercise a complete two-stage run with a tiny, entirely local encoder."""
 
 import json
+import importlib.util
 import re
 import tempfile
 import unittest
@@ -278,6 +279,11 @@ class LocalTrainingTests(unittest.TestCase):
         from ner import recipes
 
         notebook_dir = Path(__file__).resolve().parents[1] / "transformers"
+        spec = importlib.util.spec_from_file_location(
+            "run_sequence", notebook_dir / "run_sequence.py"
+        )
+        sequence = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sequence)
         optimization = {
             "epochs": 1,
             "batch_size": 2,
@@ -300,10 +306,8 @@ class LocalTrainingTests(unittest.TestCase):
         ):
             for path in sorted(notebook_dir.glob("0[345]*.ipynb")):
                 with self.subTest(notebook=path.name):
-                    context = {"OUT": self.root / path.stem / "runs", "WANDB_PROJECT": None}
-                    cells = json.loads(path.read_text())["cells"]
-                    # Setup is checked with a real Drive mount and W&B login on Colab.
-                    for cell in cells[3:]:
+                    notebook = json.loads(path.read_text())
+                    for cell in notebook["cells"]:
                         if cell["cell_type"] != "code":
                             continue
                         source = re.sub(
@@ -312,7 +316,12 @@ class LocalTrainingTests(unittest.TestCase):
                             "".join(cell["source"]),
                             flags=re.MULTILINE,
                         )
-                        exec(compile(source, str(path), "exec"), context)
+                        cell["source"] = source.splitlines(keepends=True)
+                    fixture = self.root / path.name
+                    fixture.write_text(json.dumps(notebook))
+                    context = sequence.execute_notebook(
+                        fixture, self.root / path.stem / "runs", None
+                    )
 
                     self.assertEqual(len(context["SELECTION"]["trials"]), 2)
                     self.assertEqual(len(set(context["FOLD_RUNS"])), 3)
