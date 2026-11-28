@@ -199,7 +199,7 @@ score records, failed W&B uploads and the memory probe. No model download, GPU t
 Drive authentication or W&B upload is needed. They do not establish that the three full-sized encoders
 fit the selected Colab GPU.
 
-Current result: **15 tests pass locally and on Colab**; the suite includes regressions for loading an
+Baseline verification: **15 tests passed locally and on Colab**; the suite includes regressions for loading an
 FP16 checkpoint and preserving non-finite AMP diagnostics. The original 12-test suite also passed with
 the T4 visible; the final rerun used a CPU subprocess while the real encoders used the GPU. The actual
 code cells of all three notebooks also ran with a tiny encoder, including both LR trials, all three
@@ -212,3 +212,8 @@ sessions; do not use it as a total GPU-cost estimate.
 Notebook 02's saved results were merged from `main` in `ef33ff5`. Its historical runs used the earlier
 implementation; the preservation changes do not retroactively create their model exports. Freeze one
 Git revision for all new model notebooks.
+
+The current recovery suite passes **25 local tests**, including immutable rescue staging, newest-valid
+checkpoint selection, configuration equivalence, and actual worker processes using prepared notebooks.
+Prepared notebooks are inputs to the queue worker, which skips their standalone setup cell; use the
+launch commands above to retain the selected working directory.
