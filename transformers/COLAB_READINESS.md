@@ -4,12 +4,12 @@
 `herman/transformers-training` now adds Drive weight/tokenizer exports, verified completion, stage-aware
 checkpoint recovery, W&B ensemble logging, result/figure exports, explicit Kaggle score preservation,
 automatic LR selection, configurable memory settings and a real-model GPU preflight. See the
-[training guide](README.md) for the current workflow. Full-sized Colab GPU execution and a live
-Drive/W&B round trip remain to be validated; cross-encoder alignment remains future ensemble work.
+[training guide](README.md) for the current workflow and the [Colab verification record](COLAB_VERIFICATION.md)
+for actual GPU and Drive/W&B checks. Cross-encoder alignment remains future ensemble work.
 
 Reviewed on 2026-11-28 against commit `dd793d64f95b8108e79f3ed429618c8a8101ea3f`.
 
-**Decision: the notebooks can start independently from a repository checkout, but are not yet ready
+**Baseline decision (historical): the notebooks can start independently from a repository checkout, but are not yet ready
 for runs whose weights, results and ensemble inputs must survive a Colab reset.** The main blocker is
 that trained weights and tokenizers are never saved. This review records findings and proposed changes;
 it does not change training code, the running optimisation experiment, or the selected recipe.

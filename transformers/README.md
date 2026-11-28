@@ -1,15 +1,19 @@
 # Training on Colab
 
-Notebooks 03–05 use the same Drive export and W&B logging code. The optimisation recipe remains in
-`ner/recipes.py`; it has not been changed while notebook 02 is training.
+Notebooks 03–05 use the same Drive export and W&B logging code. The optimisation results from
+notebook 02 are incorporated in `ner/recipes.py`: two epochs on sentences, then four on synthetic
+posts. AdamW and the other baseline settings remain unchanged. Each encoder still compares its own
+learning rates before training the remaining folds.
 
 ## Start a run
 
-1. Publish branch `herman/transformers-training`, then open the desired notebook from that branch in
-   Colab. The setup cell fetches `REPO_REF`; use a commit SHA to reproduce a particular version. A branch
-   that exists only locally cannot be fetched by Colab.
-2. Select a GPU runtime. Set `DRIVE_ROOT` to your Drive folder and `WANDB_ENTITY` to your team entity.
-   A shortcut to a shared folder must exist at that same path for each teammate. Otherwise each person
+1. Open the desired notebook from branch `herman/transformers-training` in Colab. Setup fetches the
+   pinned training commit in `REPO_REF` (`357bef2`), shared by all three notebooks. Change it only for a
+   deliberate new experiment; the selected commit must be published for Colab to fetch it.
+2. Select a GPU runtime. Set `DRIVE_ROOT` to your Drive folder. `WANDB_ENTITY` defaults to the verified
+   `models-kyiv-school-of-economics` team; an environment variable can override it.
+   Use one training notebook per GPU runtime. A shortcut to a shared folder must exist at that same
+   path for each teammate. Otherwise each person
    writes to their own My Drive. Set `WANDB_PROJECT = None` if logging is intentionally disabled.
 3. Run setup, mount Drive and authenticate W&B. Setup installs
    [`requirements-colab.txt`](requirements-colab.txt), verifies input files and checks Drive writes.
@@ -121,9 +125,16 @@ preflight update enters an experiment. Check the report for headroom before proc
 reduce microbatch/evaluation/inference batches and adjust accumulation to retain the effective batch.
 Do not silently shorten windows or change optimizers just to make the probe pass.
 
-This reduces known risks but **T4 fit and throughput remain unmeasured** in this local environment.
-The preflight is a representative memory check, not a guarantee that every full-run allocation fits.
-mDeBERTa also needs a GPU precision check; use `precision="fp32"` if mixed precision is non-finite.
+All three encoders passed the full-window preflight on a Colab T4 on 2026-11-28. Peak allocated/reserved
+memory was 10.42/11.21 GiB for XLM-R large, 11.65/13.11 GiB for mDeBERTa and 5.31/6.04 GiB for mBERT
+(14.56 GiB available). See [the verification record](COLAB_VERIFICATION.md) for scope and remaining
+integration checks. These short probes do not establish full-run throughput or guarantee that every
+later allocation fits.
+
+mDeBERTa's checkpoint loads FP16 weights by default under the pinned Transformers version. That caused
+`Attempting to unscale FP16 gradients` on the T4. The shared loader now explicitly loads FP32 training
+weights, while autocast still runs supported operations in FP16. Its corrected preflight passed; use
+`precision="fp32"` if a later input produces non-finite mixed-precision results.
 
 The implementation follows the documented
 [Trainer checkpoint/gradient-checkpointing settings](https://huggingface.co/docs/transformers/main_classes/trainer)
@@ -143,10 +154,16 @@ score records, failed W&B uploads and the memory probe. No model download, GPU t
 Drive authentication or W&B upload is needed. They do not establish that the three full-sized encoders
 fit the selected Colab GPU.
 
-Current local result: **11 tests pass**; notebook schemas, code-cell compilation and lint checks pass.
+Current result: **15 tests pass locally and on Colab**; the suite includes regressions for loading an
+FP16 checkpoint and preserving non-finite AMP diagnostics. The original 12-test suite also passed with
+the T4 visible; the final rerun used a CPU subprocess while the real encoders used the GPU. The actual
+code cells of all three notebooks also ran with a tiny encoder, including both LR trials, all three
+folds, plots, ensemble export and saved-model reload. All three real encoders also completed bounded
+two-stage training, Drive export, saved-weight reload and a 477-row submission. Live W&B training and
+ensemble uploads passed. Notebook code-cell compilation and lint checks pass.
 For resumed runs, `train_minutes` measures the completing session and excludes earlier interrupted
 sessions; do not use it as a total GPU-cost estimate.
 
-Notebook 02's running Python session keeps its already-imported implementation. These branch changes
-do not retroactively preserve weights from its completed runs. Incorporate its eventual winning
-settings only after reviewing its exported results; then freeze one revision for all model notebooks.
+Notebook 02's saved results were merged from `main` in `ef33ff5`. Its historical runs used the earlier
+implementation; the preservation changes do not retroactively create their model exports. Freeze one
+Git revision for all new model notebooks.
