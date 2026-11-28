@@ -27,3 +27,4 @@ wandb/
 /transformers/runs/*/model/
 /transformers/runs/*/work/
 /transformers/ensembles/
+/transformers/artifacts/
