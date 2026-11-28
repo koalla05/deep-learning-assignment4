@@ -284,6 +284,11 @@ class LocalTrainingTests(unittest.TestCase):
         )
         sequence = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(sequence)
+        prep_spec = importlib.util.spec_from_file_location(
+            "prepare_remaining", notebook_dir / "prepare_remaining.py"
+        )
+        preparation = importlib.util.module_from_spec(prep_spec)
+        prep_spec.loader.exec_module(preparation)
         optimization = {
             "epochs": 1,
             "batch_size": 2,
@@ -327,6 +332,19 @@ class LocalTrainingTests(unittest.TestCase):
                     self.assertEqual(len(set(context["FOLD_RUNS"])), 3)
                     verify_bundle(context["ENSEMBLE_DIR"])
                     self.assertEqual(len(context["restored_predictions"]), 2)
+                    staged = [
+                        {
+                            "run": name,
+                            "config": json.loads(
+                                (context["OUT"] / name / "config.json").read_text()
+                            ),
+                        }
+                        for name in context["FOLD_RUNS"]
+                    ]
+                    preparation.validate_resume_recipe(fixture, staged, context["OUT"])
+                    staged[0]["config"]["stage2_epochs"] += 1
+                    with self.assertRaisesRegex(ValueError, "change the saved configuration"):
+                        preparation.validate_resume_recipe(fixture, staged, context["OUT"])
                     plt.close("all")
 
     def test_two_stages_export_weights_that_reproduce_saved_predictions(self):

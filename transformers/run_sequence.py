@@ -53,7 +53,7 @@ def execute_notebook(path, output, project):
     return namespace
 
 
-def run_sequence(models, output, project, runner=subprocess.run):
+def run_sequence(models, output, project, runner=subprocess.run, notebooks_dir=None):
     """Stop on failure; reruns rely on the notebooks' verified cache and recovery."""
     if not models or len(models) != len(set(models)) or any(m not in NOTEBOOKS for m in models):
         raise ValueError("Select distinct models from mbert, mdeberta, xlmr")
@@ -91,6 +91,8 @@ def run_sequence(models, output, project, runner=subprocess.run):
         ]
         if project:
             command += ["--project", project]
+        if notebooks_dir is not None:
+            command += ["--notebooks-dir", str(Path(notebooks_dir).resolve())]
         environment = {**os.environ, "MPLBACKEND": "Agg", "TOKENIZERS_PARALLELISM": "false"}
         try:
             with log.open("w") as stream:
@@ -121,6 +123,7 @@ def main():
     parser.add_argument("--worker", choices=NOTEBOOKS)
     parser.add_argument("--output", required=True)
     parser.add_argument("--project")
+    parser.add_argument("--notebooks-dir", type=Path)
     args = parser.parse_args()
 
     # A notebook cancellation terminates the supervisor. Unwind subprocess.run so it also
@@ -133,12 +136,14 @@ def main():
     sys.path.insert(0, str(ROOT))
     if args.worker:
         context = execute_notebook(
-            ROOT / "transformers" / NOTEBOOKS[args.worker], args.output, args.project
+            (args.notebooks_dir or ROOT / "transformers") / NOTEBOOKS[args.worker],
+            args.output,
+            args.project,
         )
         print(f"Verified ensemble exported to {context['ENSEMBLE_DIR']}", flush=True)
     else:
         with queue_lock(args.output):
-            run_sequence(args.models, args.output, args.project)
+            run_sequence(args.models, args.output, args.project, notebooks_dir=args.notebooks_dir)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,40 @@ learning rates before training the remaining folds.
 
 ## Start a run
 
+### Resume the rescued experiment
+
+Keep `dl-a4-ner-migrated-20261128` as the immutable backup. The remaining training uses a separate
+`dl-a4-ner-training-20261128` folder on the destination account's Drive. With Drive mounted and the
+reviewed dependencies installed, prepare it from the repository root:
+
+```bash
+python transformers/prepare_remaining.py \
+  --backup /content/drive/MyDrive/dl-a4-ner-migrated-20261128 \
+  --working /content/drive/MyDrive/dl-a4-ner-training-20261128
+```
+
+Preparation verifies source/input/package compatibility, copies completed mDeBERTa trials and only
+the newest valid recovery checkpoint into the working directory, and pins the pretrained revisions
+in copied notebook cells. It checks that the actual notebook constructs exactly the saved run configs.
+Partial checkpoint 2250 stays in the rescue; the verified recovery point is checkpoint 2000.
+Existing newer working checkpoints are retained on subsequent launches.
+
+After authenticating W&B in the runtime environment, run the remaining models sequentially:
+
+```bash
+python transformers/run_sequence.py --models mdeberta xlmr \
+  --output /content/drive/MyDrive/dl-a4-ner-training-20261128/runs \
+  --notebooks-dir /content/drive/MyDrive/dl-a4-ner-training-20261128/prepared-notebooks \
+  --project dl-a4-ner
+```
+
+The queue reuses both completed mDeBERTa trials, resumes fold 1, trains fold 2 and exports its ensemble,
+then runs XLM-R's trials and folds. mBERT's completed outputs remain in the rescue folder. The shared
+`ner/` training code and the recipe are unchanged; the added preparation code handles migration and
+launch settings. Drive capacity and runtime lifetime remain separate from compute-unit availability.
+
+### Start a fresh experiment
+
 For automatic sequential execution, open **`06_train_sequence.ipynb`** instead. Authenticate Drive
 and W&B once and run all cells. Set `MODELS` to any ordered subset of `mbert`, `mdeberta`, `xlmr`;
 the default runs all three. Each encoder executes the existing notebook's training cells in a fresh

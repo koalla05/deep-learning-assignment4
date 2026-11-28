@@ -101,6 +101,8 @@ class SequenceTests(unittest.TestCase):
             scripts = root / "transformers"
             scripts.mkdir()
             (scripts / "run_sequence.py").write_text(Path(sequence.__file__).read_text())
+            prepared = root / "prepared-notebooks"
+            prepared.mkdir()
             for model in ("mbert", "mdeberta"):
                 notebook = json.loads(
                     (repo / "transformers" / sequence.NOTEBOOKS[model]).read_text()
@@ -140,7 +142,7 @@ OUT.mkdir(parents=True, exist_ok=True)
                             source = prelude + source
                             first_training = False
                     cell["source"] = source.splitlines(keepends=True)
-                (scripts / sequence.NOTEBOOKS[model]).write_text(json.dumps(notebook))
+                (prepared / sequence.NOTEBOOKS[model]).write_text(json.dumps(notebook))
 
             output = root / "runs"
             environment = {
@@ -161,6 +163,8 @@ OUT.mkdir(parents=True, exist_ok=True)
                             "mdeberta",
                             "--output",
                             str(output),
+                            "--notebooks-dir",
+                            str(prepared),
                         ],
                         stdout=log,
                         stderr=subprocess.STDOUT,
