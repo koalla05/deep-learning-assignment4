@@ -1,6 +1,7 @@
 """Exercise a complete two-stage run with a tiny, entirely local encoder."""
 
 import json
+import re
 import tempfile
 import unittest
 from dataclasses import replace
@@ -252,6 +253,54 @@ class LocalTrainingTests(unittest.TestCase):
         self.assertFalse(observed["finite"])
         self.assertIsNone(observed["head"])
         self.assertGreater(observed["embeddings"], 0)
+
+    def test_notebooks_complete_the_learning_rate_and_three_fold_workflow(self):
+        import matplotlib.pyplot as plt
+
+        from ner import recipes
+
+        notebook_dir = Path(__file__).resolve().parents[1] / "transformers"
+        optimization = {
+            "epochs": 1,
+            "batch_size": 2,
+            "max_length": 16,
+            "stride": 4,
+            "precision": "fp32",
+        }
+        stage2 = {"stage2_data": self.cfg.stage2_data, "stage2_epochs": 1, "stage2_lr": 2e-5}
+
+        # Execute the actual notebook cells against the tiny encoder and fixture rows. Full-sized
+        # model downloads, GPU capacity and external authentication are separate Colab checks.
+        with (
+            patch.object(recipes, "OPTIMIZATION", optimization),
+            patch.object(recipes, "STAGE2", stage2),
+            patch("ner.experiment.freeze_model_revision", return_value=None),
+            patch(
+                "ner.preflight.memory_check",
+                side_effect=lambda cfg, output: memory_check(cfg, output, require_cuda=False),
+            ),
+        ):
+            for path in sorted(notebook_dir.glob("0[345]*.ipynb")):
+                with self.subTest(notebook=path.name):
+                    context = {"OUT": self.root / path.stem / "runs", "WANDB_PROJECT": None}
+                    cells = json.loads(path.read_text())["cells"]
+                    # Setup is checked with a real Drive mount and W&B login on Colab.
+                    for cell in cells[3:]:
+                        if cell["cell_type"] != "code":
+                            continue
+                        source = re.sub(
+                            r"^MODEL = .+$",
+                            f"MODEL = {str(self.model_dir)!r}",
+                            "".join(cell["source"]),
+                            flags=re.MULTILINE,
+                        )
+                        exec(compile(source, str(path), "exec"), context)
+
+                    self.assertEqual(len(context["SELECTION"]["trials"]), 2)
+                    self.assertEqual(len(set(context["FOLD_RUNS"])), 3)
+                    verify_bundle(context["ENSEMBLE_DIR"])
+                    self.assertEqual(len(context["restored_predictions"]), 2)
+                    plt.close("all")
 
     def test_two_stages_export_weights_that_reproduce_saved_predictions(self):
         metrics = run(self.cfg, self.root)
