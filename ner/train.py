@@ -15,6 +15,7 @@ import dataclasses
 import gc
 import inspect
 import json
+import math
 import os
 import pickle
 import re
@@ -222,10 +223,22 @@ class GradFlowCallback(TrainerCallback):
                 sq[g] = sq.get(g, 0.0) + float(
                     torch.linalg.vector_norm(p.grad.detach(), dtype=torch.float32).square()
                 )
-        row = {"step": state.global_step, "stage": self.stage, **{g: v**0.5 for g, v in sq.items()}}
+        finite = all(math.isfinite(value) for value in sq.values())
+        # AMP may skip an early overflowing update while its scaler settles. Keep that observation
+        # explicit without writing NaN/Infinity into JSON or presenting it as a zero gradient.
+        row = {
+            "step": state.global_step,
+            "stage": self.stage,
+            "finite": finite,
+            **{group: value**0.5 if math.isfinite(value) else None for group, value in sq.items()},
+        }
         self.history.append(row)
         _wandb_log(
-            {f"grad_flow/{g}": v for g, v in row.items() if g not in ("step", "stage")},
+            {
+                f"grad_flow/{g}": v
+                for g, v in row.items()
+                if g not in ("step", "stage") and v is not None
+            },
             state.global_step,
             self.stage,
         )

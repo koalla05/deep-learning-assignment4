@@ -20,7 +20,15 @@ from ner.inference import predict_saved
 from ner.predict import average_probs
 from ner.preflight import memory_check
 from ner.runtime import load_initial_model, resolved_precision
-from ner.train import RunConfig, WeightedTokenTrainer, load_probs, run, run_or_load
+from ner.train import (
+    GradFlowCallback,
+    RecoveryHistoryCallback,
+    RunConfig,
+    WeightedTokenTrainer,
+    load_probs,
+    run,
+    run_or_load,
+)
 from transformers import BertConfig, BertForTokenClassification, BertTokenizerFast
 
 
@@ -222,6 +230,28 @@ class LocalTrainingTests(unittest.TestCase):
             {p.grad.dtype for p in model.parameters() if p.grad is not None},
             {torch.float32},
         )
+
+    def test_amp_overflow_does_not_break_checkpoint_history(self):
+        model = BertForTokenClassification.from_pretrained(self.model_dir)
+        for parameter in model.parameters():
+            parameter.grad = torch.ones_like(parameter)
+        # Clipping an overflowing AMP gradient can leave NaNs before the scaler skips the update.
+        model.classifier.weight.grad.fill_(float("nan"))
+        gradients = GradFlowCallback(every=1)
+        state = SimpleNamespace(global_step=0)
+        gradients.on_pre_optimizer_step(None, state, None, model=model)
+
+        checkpoint = self.root / "checkpoint-1"
+        checkpoint.mkdir()
+        state.global_step = 1
+        callback = RecoveryHistoryCallback(SimpleNamespace(history=[]), gradients, 0, 0)
+        callback.on_save(SimpleNamespace(output_dir=str(self.root)), state, None)
+
+        verify_bundle(checkpoint)
+        observed = json.loads((checkpoint / "observations.json").read_text())["grad_flow"][0]
+        self.assertFalse(observed["finite"])
+        self.assertIsNone(observed["head"])
+        self.assertGreater(observed["embeddings"], 0)
 
     def test_two_stages_export_weights_that_reproduce_saved_predictions(self):
         metrics = run(self.cfg, self.root)
